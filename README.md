@@ -14,6 +14,8 @@ This fork adds an **AI Router** that solves two practical problems when chaining
 
 The AI Router **only supports the OpenAI-compatible protocol**. Any provider that exposes an OpenAI-compatible endpoint can be configured directly in the AI Router — including Claude (via Anthropic's OpenAI-compatible endpoint or OpenRouter), DeepSeek, Kimi, Zhipu, Ollama, vLLM, and others. There is no plan to support the Claude native API, since the OpenAI-compatible protocol already covers those models and keeps the failover logic simple and robust.
 
+The AI Router runs on the Ocelot server side, so it only takes effect when connecting to an Ocelot instance. Connecting to an external (non-Ocelot) instance is technically supported, but AI Router configuration and failover will not be available for that instance.
+
 Everything else stays identical to upstream OpenChamber.
 
 ---
