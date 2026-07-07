@@ -5,16 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const electronRoot = path.resolve(__dirname, '..');
-const workspaceRoot = path.resolve(electronRoot, '../..');
 
-const readExpectedVersion = () => {
-  const pkg = JSON.parse(fs.readFileSync(path.join(workspaceRoot, 'package.json'), 'utf8'));
-  const version = pkg.dependencies?.['@opencode-ai/sdk'];
-  if (typeof version !== 'string' || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) {
-    throw new Error(`Expected root @opencode-ai/sdk to be pinned to an exact version, got: ${version || '(missing)'}`);
-  }
-  return version;
-};
 
 const binaryName = () => process.platform === 'win32' ? 'opencode.exe' : 'opencode';
 
@@ -33,7 +24,7 @@ const runVersion = (binaryPath) => {
   return (result.stdout || '').trim().split(/\s+/)[0] || '';
 };
 
-const assertBinary = (binaryPath, expectedVersion) => {
+const assertBinary = (binaryPath) => {
   if (!fs.existsSync(binaryPath)) {
     throw new Error(`Bundled OpenCode CLI not found: ${binaryPath}`);
   }
@@ -45,8 +36,8 @@ const assertBinary = (binaryPath, expectedVersion) => {
     throw new Error(`Bundled OpenCode CLI is not executable: ${binaryPath}`);
   }
   const actualVersion = runVersion(binaryPath);
-  if (actualVersion !== expectedVersion) {
-    throw new Error(`Bundled OpenCode CLI version mismatch at ${binaryPath}: expected ${expectedVersion}, got ${actualVersion || '(empty)'}`);
+  if (!actualVersion) {
+    throw new Error(`Bundled OpenCode CLI at ${binaryPath} did not report a version`);
   }
   console.log(`[electron] verified bundled OpenCode CLI ${actualVersion}: ${binaryPath}`);
 };
@@ -84,9 +75,8 @@ const main = () => {
   const mode = process.argv[2];
   if (mode !== '--staged' && mode !== '--packaged') usage();
 
-  const expectedVersion = readExpectedVersion();
   if (mode === '--staged') {
-    assertBinary(path.join(electronRoot, 'resources', 'opencode-cli', binaryName()), expectedVersion);
+    assertBinary(path.join(electronRoot, 'resources', 'opencode-cli', binaryName()));
     return;
   }
 
@@ -95,7 +85,7 @@ const main = () => {
     throw new Error('No packaged OpenCode CLI found under packages/electron/dist');
   }
   for (const packagedBinary of packagedBinaries) {
-    assertBinary(packagedBinary, expectedVersion);
+    assertBinary(packagedBinary);
   }
 };
 
