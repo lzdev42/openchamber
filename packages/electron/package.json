@@ -1,6 +1,6 @@
 {
   "name": "@ocelot/electron",
-  "version": "1.14.1",
+  "version": "1.0.0",
   "private": true,
   "description": "Electron desktop runtime for Ocelot",
   "author": "Ocelot",
