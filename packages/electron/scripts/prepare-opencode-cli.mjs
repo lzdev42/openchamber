@@ -26,17 +26,53 @@ const run = (command, args, options = {}) => {
   return result;
 };
 
+const fetchLatestVersion = async () => {
+  console.log('[electron] fetching latest OpenCode CLI version from GitHub...');
+  const response = await fetch('https://api.github.com/repos/anomalyco/opencode/releases/latest', {
+    headers: { 'Accept': 'application/vnd.github+json', 'User-Agent': 'ocelot-build' },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch latest OpenCode release: ${response.status} ${response.statusText}`);
+  }
+  const data = await response.json();
+  const tag = data.tag_name;
+  if (typeof tag !== 'string' || !tag.startsWith('v')) {
+    throw new Error(`Unexpected tag_name from GitHub API: ${tag}`);
+  }
+  const version = tag.slice(1); // strip leading 'v'
+  console.log(`[electron] latest OpenCode CLI version: ${version}`);
+  return version;
+};
+
 const readPinnedSdkVersion = () => {
   const pkg = JSON.parse(fs.readFileSync(rootPackagePath, 'utf8'));
   const version = pkg.dependencies?.['@opencode-ai/sdk'];
-  if (typeof version !== 'string' || !version.trim()) {
-    throw new Error('Missing @opencode-ai/sdk dependency in root package.json');
-  }
+  if (typeof version !== 'string' || !version.trim()) return null;
   const trimmed = version.trim();
-  if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(trimmed)) {
-    throw new Error(`@opencode-ai/sdk must be pinned to an exact version for desktop CLI bundling, got: ${trimmed}`);
-  }
+  if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(trimmed)) return null;
   return trimmed;
+};
+
+// Resolve version: env var (explicit) > GitHub latest > pinned SDK version in package.json
+const resolveVersion = async () => {
+  const envVersion = process.env.OCELOT_OPENCODE_CLI_VERSION?.trim();
+  if (envVersion && envVersion !== 'latest') {
+    if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(envVersion)) {
+      throw new Error(`Invalid OCELOT_OPENCODE_CLI_VERSION: ${envVersion}`);
+    }
+    return envVersion;
+  }
+  // Always try to get latest from GitHub unless a pinned version is set in package.json
+  // and no env override is present
+  const pinnedVersion = readPinnedSdkVersion();
+  if (!pinnedVersion) {
+    return await fetchLatestVersion();
+  }
+  // pinned version exists — still prefer GitHub latest so builds always bundle newest opencode
+  return await fetchLatestVersion().catch((err) => {
+    console.warn(`[electron] could not fetch latest version (${err.message}), falling back to pinned: ${pinnedVersion}`);
+    return pinnedVersion;
+  });
 };
 
 const artifactForCurrentPlatform = () => {
@@ -129,7 +165,7 @@ const findBinary = (root, binaryName) => {
 };
 
 const main = async () => {
-  const version = process.env.OCELOT_OPENCODE_CLI_VERSION || readPinnedSdkVersion();
+  const version = await resolveVersion();
   if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) {
     throw new Error(`Invalid OpenCode CLI version: ${version}`);
   }
