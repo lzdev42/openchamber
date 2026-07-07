@@ -12,33 +12,22 @@ This fork adds an **AI Router** that solves two practical problems when chaining
 
 2. **Automatic failover** — If an API endpoint goes down or returns an error, the AI Router automatically reroutes the request to a backup provider, preventing automated workflows from silently stopping mid-task.
 
+The AI Router **only supports the OpenAI-compatible protocol**. Any provider that exposes an OpenAI-compatible endpoint can be configured directly in the AI Router — including Claude (via Anthropic's OpenAI-compatible endpoint or OpenRouter), DeepSeek, Kimi, Zhipu, Ollama, vLLM, and others. There is no plan to support the Claude native API, since the OpenAI-compatible protocol already covers those models and keeps the failover logic simple and robust.
+
 Everything else stays identical to upstream OpenChamber.
 
 ---
 
 ## Quick Start
 
-> **Prerequisite:** Desktop bundles the matching OpenCode CLI. CLI/Web and VS Code use your installed [OpenCode CLI](https://opencode.ai).
-
 ### **Desktop (macOS + Windows)**
 Download from [Releases](https://github.com/lzdev42/openchamber/releases).
-
-### **VS Code**
-Install from [Marketplace](https://marketplace.visualstudio.com/items?itemName=fedaykindev.openchamber) or search "OpenChamber" in Extensions.
-
-### **CLI (Web + PWA)**
-_requires Node.js 22+_
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/lzdev42/openchamber/main/scripts/install.sh | bash
-openchamber --ui-password be-creative-here
-```
 
 ---
 
 ## Features
 
-### Core (all app versions)
+### Core
 
 - Branchable chat timeline with `/undo`, `/redo`, and one-click forks from earlier turns
 - Smart tool UIs for diffs, file operations, permissions, and long-running task progress
@@ -71,14 +60,6 @@ openchamber --ui-password be-creative-here
 - Convenient tunnel management without manual setup
 - Deep-link connections for joining remote OpenChamber from a link
 - SSH remote access with host import, connection management, and port forwarding
-
-### VS Code Extension
-
-- Editor-native workflow: open files directly from tool output and keep sessions beside your code
-- Agent Manager for parallel multi-model runs from a single prompt
-- Right-click actions to add context, explain selections, and improve code in-place
-- In-extension settings, responsive layout, and theme mapping that matches your editor
-- Hardened runtime lifecycle and health checks for faster startup and fewer stuck reconnect states
 
 ---
 
