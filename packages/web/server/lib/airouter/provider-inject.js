@@ -51,7 +51,7 @@ function buildModelsFromRoutes(routes) {
     };
     const model = { name, limit };
     if (routeValue.attachment === true) {
-      model.attachment = true;
+      model.modalities = { input: ["text", "image"] };
     }
     models[routeKey] = model;
   }

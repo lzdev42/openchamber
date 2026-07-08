@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.4] - 2026-07-08
+
+- Use OpenCode `modalities` field instead of custom `attachment` flag for AI Router image input support
+
 ## [1.0.3] - 2026-07-08
 
 - Fix AI Router stream stall causing UI to hang indefinitely when upstream API drops mid-response
