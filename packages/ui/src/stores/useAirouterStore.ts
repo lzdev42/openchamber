@@ -2,6 +2,12 @@ import { create } from 'zustand';
 
 export type ParamValue = string | number | boolean;
 
+export type RouteLimit = {
+  context: number;
+  input: number;
+  output: number;
+};
+
 export type RouteEntry = {
   key: string;
   name: string;
@@ -12,7 +18,9 @@ export type RouteEntry = {
   max_retries: number;
   timeout: number;
   enabled: boolean;
+  attachment: boolean;
   fallback: string[];
+  limit: RouteLimit;
 };
 
 export type AirouterConfig = {

@@ -65,6 +65,14 @@ function customLookup(hostname, options, callback) {
 const FALLBACK_TRIGGER_CODES = [429, 500, 502, 503, 504];
 const RETRY_DELAY_MS = 5000;
 
+// Stall detection during body streaming. If no new chunk arrives from the
+// upstream API for this many milliseconds, abort the reader and close the
+// connection. This prevents the UI from hanging indefinitely when the API
+// stalls mid-stream (e.g. connection silently drops after partial output).
+// 90s is generous enough to tolerate deep-thinking pauses while still
+// catching genuine stalls well before the 5-minute undici bodyTimeout.
+const STALL_TIMEOUT_MS = 90_000;
+
 const HOP_BY_HOP_HEADERS = new Set([
   'content-encoding',
   'transfer-encoding',
@@ -128,10 +136,38 @@ async function streamResponse(response, res) {
   });
   if (response.body) {
     const reader = response.body.getReader();
+    let hasWritten = false;
     while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      res.write(Buffer.from(value));
+      // Race each read against a stall timer. If the upstream API sends
+      // nothing for STALL_TIMEOUT_MS, abort the reader and close the
+      // response so OpenCode sees a clean connection close instead of
+      // hanging forever.
+      let stallTimer = null;
+      const stallPromise = new Promise((_, reject) => {
+        stallTimer = setTimeout(() => {
+          const err = new Error('STREAM_STALL');
+          err.stalled = true;
+          err.hasWritten = hasWritten;
+          reject(err);
+        }, STALL_TIMEOUT_MS);
+      });
+      try {
+        const { done, value } = await Promise.race([reader.read(), stallPromise]);
+        clearTimeout(stallTimer);
+        if (done) break;
+        hasWritten = true;
+        res.write(Buffer.from(value));
+      } catch (error) {
+        clearTimeout(stallTimer);
+        // Stall (or reader error): abort the upstream reader and close
+        // the downstream response. We can't retry because headers are
+        // already sent.
+        try { await reader.cancel(); } catch { /* ignore */ }
+        if (!res.writableEnded) {
+          res.end();
+        }
+        throw error;
+      }
     }
   }
   res.end();
@@ -282,6 +318,14 @@ export function createAirouterRoutes(config) {
           await streamResponse(response, res);
         } catch (error) {
           clearTimeout(timer);
+
+          // Stream stall: the response was already partially sent to
+          // OpenCode. res.end() was called by streamResponse. We cannot
+          // retry or fallback because headers are already committed.
+          if (error?.stalled) {
+            addLog('warn', `Stream stall ${routeName} (hasWritten=${error.hasWritten}) — connection closed`);
+            return;
+          }
 
           const isTimeout = error?.name === 'AbortError';
           addLog('error', `${isTimeout ? 'Timeout' : 'Network error'} ${routeName}: ${error?.message || error}`);

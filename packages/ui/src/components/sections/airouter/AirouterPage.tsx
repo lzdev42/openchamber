@@ -14,9 +14,12 @@ import {
   useAirouterStore,
   type AirouterConfig,
   type RouteEntry,
+  type RouteLimit,
   type ParamValue,
   type AirouterLogEntry,
 } from '@/stores/useAirouterStore';
+
+const DEFAULT_LIMIT: RouteLimit = { context: 200000, input: 184000, output: 16000 };
 
 const emptyRoute = (): RouteEntry => ({
   key: '',
@@ -28,7 +31,9 @@ const emptyRoute = (): RouteEntry => ({
   max_retries: 3,
   timeout: 60000,
   enabled: true,
+  attachment: false,
   fallback: [],
+  limit: { ...DEFAULT_LIMIT },
 });
 
 const configToEntries = (config: AirouterConfig | null): RouteEntry[] => {
@@ -43,7 +48,13 @@ const configToEntries = (config: AirouterConfig | null): RouteEntry[] => {
     max_retries: value.max_retries ?? 3,
     timeout: value.timeout ?? 60000,
     enabled: value.enabled !== false,
+    attachment: value.attachment === true,
     fallback: value.fallback ?? [],
+    limit: {
+      context: Number.isFinite(value.limit?.context) && value.limit.context > 0 ? value.limit.context : DEFAULT_LIMIT.context,
+      input: Number.isFinite(value.limit?.input) && value.limit.input > 0 ? value.limit.input : DEFAULT_LIMIT.input,
+      output: Number.isFinite(value.limit?.output) && value.limit.output > 0 ? value.limit.output : DEFAULT_LIMIT.output,
+    },
   }));
 };
 
@@ -324,6 +335,82 @@ const RouteCard: React.FC<{
             </div>
           </div>
 
+          {/* Image Support */}
+          <div
+            className="group flex cursor-pointer items-center gap-2 py-1.5"
+            role="button"
+            tabIndex={0}
+            onClick={() => onPatch({ attachment: !entry.attachment })}
+            onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onPatch({ attachment: !entry.attachment }); } }}
+          >
+            <Checkbox
+              checked={entry.attachment}
+              onChange={(v) => onPatch({ attachment: v })}
+              ariaLabel={t('settings.airouter.page.field.imageSupport')}
+            />
+            <span className="typography-ui-label text-foreground">
+              {t('settings.airouter.page.field.imageSupport')}
+            </span>
+          </div>
+
+          {/* Token Limits */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <h4 className="text-xs font-medium text-muted-foreground typography-ui-label">
+                {t('settings.airouter.page.section.limits')}
+              </h4>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Icon name="information" className="h-3 w-3 text-muted-foreground/60 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent sideOffset={8} className="max-w-sm">
+                  <p>{t('settings.airouter.page.tooltip.limits')}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground typography-ui-label">
+                  {t('settings.airouter.page.field.limitContext')}
+                </label>
+                <NumberInput
+                  value={entry.limit.context}
+                  onValueChange={(v) => onPatch({ limit: { ...entry.limit, context: v } })}
+                  min={1}
+                  step={1000}
+                  fallbackValue={DEFAULT_LIMIT.context}
+                  className="h-7"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground typography-ui-label">
+                  {t('settings.airouter.page.field.limitInput')}
+                </label>
+                <NumberInput
+                  value={entry.limit.input}
+                  onValueChange={(v) => onPatch({ limit: { ...entry.limit, input: v } })}
+                  min={1}
+                  step={1000}
+                  fallbackValue={DEFAULT_LIMIT.input}
+                  className="h-7"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground typography-ui-label">
+                  {t('settings.airouter.page.field.limitOutput')}
+                </label>
+                <NumberInput
+                  value={entry.limit.output}
+                  onValueChange={(v) => onPatch({ limit: { ...entry.limit, output: v } })}
+                  min={1}
+                  step={1000}
+                  fallbackValue={DEFAULT_LIMIT.output}
+                  className="h-7"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Params */}
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5">
@@ -563,7 +650,9 @@ export const AirouterPage: React.FC = () => {
         max_retries: entry.max_retries,
         timeout: entry.timeout,
         enabled: entry.enabled,
+        attachment: entry.attachment,
         fallback: entry.fallback,
+        limit: entry.limit,
       };
     }
     return {

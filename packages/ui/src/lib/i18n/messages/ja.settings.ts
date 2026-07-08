@@ -1905,4 +1905,10 @@ export const settingsDict = {
   'settings.airouter.page.actions.removeParam': 'パラメータを削除',
   'settings.airouter.page.actions.clearLogs': 'クリア',
   'settings.airouter.page.empty.logs': 'ログはまだありません。',
+  'settings.airouter.page.section.limits': 'Token 制限',
+  'settings.airouter.page.tooltip.limits': 'Context：コンテキストウィンドウの総サイズ。Input：最大入力トークン数。Output：最大出力トークン数。これらは OpenCode に公開されるモデル制限を定義します。',
+  'settings.airouter.page.field.limitContext': 'Context',
+  'settings.airouter.page.field.limitInput': 'Input',
+  'settings.airouter.page.field.limitOutput': 'Output',
+  'settings.airouter.page.field.imageSupport': '画像対応',
 } as const;

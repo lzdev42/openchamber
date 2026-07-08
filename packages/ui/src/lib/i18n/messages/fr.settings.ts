@@ -1905,4 +1905,10 @@ export const settingsDict = {
   'settings.airouter.page.actions.removeParam': 'Retirer le paramètre',
   'settings.airouter.page.actions.clearLogs': 'Effacer',
   'settings.airouter.page.empty.logs': 'Aucun journal pour le moment.',
+  'settings.airouter.page.section.limits': 'Limites de tokens',
+  'settings.airouter.page.tooltip.limits': 'Context : taille totale de la fenêtre de contexte. Input : nombre maximum de tokens en entrée. Output : nombre maximum de tokens en sortie. Ces valeurs définissent les limites du modèle exposées à OpenCode.',
+  'settings.airouter.page.field.limitContext': 'Context',
+  'settings.airouter.page.field.limitInput': 'Input',
+  'settings.airouter.page.field.limitOutput': 'Output',
+  'settings.airouter.page.field.imageSupport': 'Prise en charge des images',
 } as const;

@@ -4965,6 +4965,27 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                             >
                                 <Icon name="mic" className={cn(iconSizeClass, 'text-current')} />
                             </button>
+                            {/* Send/stop button in the collapsed pill: the text
+                                survives the pill ↔ composer swap (message state is
+                                component-level), so the user can dismiss the keyboard
+                                and still send. Only shown when there is content to
+                                send or a running session to stop. */}
+                            {(hasContent || canAbort) && (
+                                <ComposerActionButtons
+                                    isMobile={isMobile}
+                                    footerIconButtonClass={footerIconButtonClass}
+                                    sendIconSizeClass={sendIconSizeClass}
+                                    stopIconSizeClass={stopIconSizeClass}
+                                    canSend={canSend}
+                                    canAbort={canAbort}
+                                    hasContent={!!hasContent}
+                                    currentSessionId={currentSessionId}
+                                    newSessionDraftOpen={newSessionDraftOpen}
+                                    onPrimaryAction={handlePrimaryAction}
+                                    onQueueMessage={handleQueueMessage}
+                                    onAbort={handleAbort}
+                                />
+                            )}
                         </div>
                         {/* New-session button: fades/shrinks away when the draft is
                             already open, letting the pill expand into its place. */}

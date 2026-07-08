@@ -1905,4 +1905,10 @@ export const settingsDict = {
   'settings.airouter.page.actions.removeParam': '移除参数',
   'settings.airouter.page.actions.clearLogs': '清除',
   'settings.airouter.page.empty.logs': '暂无日志。',
+  'settings.airouter.page.section.limits': 'Token 限制',
+  'settings.airouter.page.tooltip.limits': 'Context：上下文窗口总大小。Input：最大输入 Token 数。Output：最大输出 Token 数。这些定义了暴露给 OpenCode 的模型限制。',
+  'settings.airouter.page.field.limitContext': 'Context',
+  'settings.airouter.page.field.limitInput': 'Input',
+  'settings.airouter.page.field.limitOutput': 'Output',
+  'settings.airouter.page.field.imageSupport': '支持图片',
 } as const;

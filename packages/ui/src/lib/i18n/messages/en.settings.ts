@@ -1901,4 +1901,10 @@ export const settingsDict = {
   'settings.airouter.page.toast.saveFailed': 'Failed to save AI Router configuration',
   'settings.airouter.page.toast.invalidJson': 'Invalid JSON syntax',
   'settings.airouter.page.toast.serializeFailed': 'Failed to serialize configuration',
+  'settings.airouter.page.section.limits': 'Token Limits',
+  'settings.airouter.page.tooltip.limits': 'Context: total context window size. Input: max input tokens. Output: max output tokens. These define the model limits exposed to OpenCode.',
+  'settings.airouter.page.field.limitContext': 'Context',
+  'settings.airouter.page.field.limitInput': 'Input',
+  'settings.airouter.page.field.limitOutput': 'Output',
+  'settings.airouter.page.field.imageSupport': 'Supports Images',
 } as const;

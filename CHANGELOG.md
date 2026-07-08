@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.3] - 2026-07-08
+
+- Fix AI Router stream stall causing UI to hang indefinitely when upstream API drops mid-response
+- Fix AI Router stream stall preventing fallback when API silently drops after partial output
+- Fix send/stop button missing from collapsed mobile input pill when content is present
+- Add image support toggle to AI Router route settings (default off)
+
 ## [1.0.2] - 2026-07-08
 
 - Fix AI Router causing OpenCode to compact context every few messages

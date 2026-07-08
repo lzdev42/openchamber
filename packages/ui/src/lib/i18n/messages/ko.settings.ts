@@ -1905,4 +1905,10 @@ export const settingsDict = {
   'settings.airouter.page.actions.removeParam': '매개변수 제거',
   'settings.airouter.page.actions.clearLogs': '지우기',
   'settings.airouter.page.empty.logs': '아직 로그가 없습니다.',
+  'settings.airouter.page.section.limits': 'Token 제한',
+  'settings.airouter.page.tooltip.limits': 'Context: 전체 컨텍스트 창 크기. Input: 최대 입력 토큰 수. Output: 최대 출력 토큰 수. 이 값들은 OpenCode에 노출되는 모델 제한을 정의합니다.',
+  'settings.airouter.page.field.limitContext': 'Context',
+  'settings.airouter.page.field.limitInput': 'Input',
+  'settings.airouter.page.field.limitOutput': 'Output',
+  'settings.airouter.page.field.imageSupport': '이미지 지원',
 } as const;

@@ -43,6 +43,19 @@ const normalizeRouteValue = (value) => {
   const endpoint = typeof value.endpoint === 'string' ? value.endpoint : '';
   if (!endpoint.trim()) return null;
 
+  const limitInput = value.limit && typeof value.limit === 'object' && !Array.isArray(value.limit) ? value.limit : {};
+  const limit = {
+    context: Number.isFinite(limitInput.context) && limitInput.context > 0
+      ? Math.trunc(limitInput.context)
+      : 200000,
+    input: Number.isFinite(limitInput.input) && limitInput.input > 0
+      ? Math.trunc(limitInput.input)
+      : 184000,
+    output: Number.isFinite(limitInput.output) && limitInput.output > 0
+      ? Math.trunc(limitInput.output)
+      : 16000,
+  };
+
   return {
     name: typeof value.name === 'string' ? value.name : '',
     endpoint: endpoint.trim(),
@@ -56,9 +69,11 @@ const normalizeRouteValue = (value) => {
       ? Math.trunc(value.timeout)
       : 60000,
     enabled: value.enabled !== false,
+    attachment: value.attachment === true,
     fallback: Array.isArray(value.fallback)
       ? value.fallback.filter((s) => typeof s === 'string' && s.trim()).map((s) => s.trim())
       : [],
+    limit,
   };
 };
 

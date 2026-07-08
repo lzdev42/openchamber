@@ -49,7 +49,11 @@ function buildModelsFromRoutes(routes) {
         ? Math.trunc(routeValue.limit.output)
         : AIROUTER_DEFAULT_LIMIT.output,
     };
-    models[routeKey] = { name, limit };
+    const model = { name, limit };
+    if (routeValue.attachment === true) {
+      model.attachment = true;
+    }
+    models[routeKey] = model;
   }
   return models;
 }
