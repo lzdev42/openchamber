@@ -323,6 +323,12 @@ export const createSettingsHelpers = (dependencies) => {
     } else if (typeof candidate.tunnelBootstrapTtlMs === 'number' && Number.isFinite(candidate.tunnelBootstrapTtlMs)) {
       result.tunnelBootstrapTtlMs = normalizeTunnelBootstrapTtlMs(candidate.tunnelBootstrapTtlMs);
     }
+    if (typeof candidate.tunnelAutoStart === 'boolean') {
+      result.tunnelAutoStart = candidate.tunnelAutoStart;
+    }
+    if (typeof candidate.tunnelPassword === 'string') {
+      result.tunnelPassword = candidate.tunnelPassword.trim();
+    }
     if (typeof candidate.tunnelSessionTtlMs === 'number' && Number.isFinite(candidate.tunnelSessionTtlMs)) {
       result.tunnelSessionTtlMs = normalizeTunnelSessionTtlMs(candidate.tunnelSessionTtlMs);
     }

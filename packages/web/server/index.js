@@ -1138,7 +1138,7 @@ async function main(options = {}) {
     || typeof options.tunnelConfigPath === 'string'
     || typeof options.tunnelToken === 'string'
     || typeof options.tunnelHostname === 'string';
-  const startupTunnelRequest = shouldUseCanonicalTunnelConfig
+  let startupTunnelRequest = shouldUseCanonicalTunnelConfig
     ? normalizeTunnelStartRequest({
         provider: normalizeTunnelProvider(options.tunnelProvider),
         mode: options.tunnelMode,
@@ -1155,6 +1155,40 @@ async function main(options = {}) {
           hostname: undefined,
         }
       : null);
+
+  // Auto-start: if no explicit tunnel config was provided via options/env,
+  // check if the user has enabled tunnel auto-start in settings.
+  if (!startupTunnelRequest) {
+    try {
+      const autoStartSettings = await readSettingsFromDiskMigrated();
+      if (autoStartSettings?.tunnelAutoStart === true) {
+        const autoProvider = normalizeTunnelProvider(autoStartSettings?.tunnelProvider);
+        const autoMode = normalizeTunnelMode(autoStartSettings?.tunnelMode);
+        const autoHostname = normalizeManagedRemoteTunnelHostname(autoStartSettings?.managedRemoteTunnelHostname);
+        let autoToken = typeof autoStartSettings?.managedRemoteTunnelToken === 'string'
+          ? autoStartSettings.managedRemoteTunnelToken.trim()
+          : '';
+        // For managed-remote, resolve token from the managed tunnel config file if not in settings
+        if (autoMode === TUNNEL_MODE_MANAGED_REMOTE && autoProvider === TUNNEL_PROVIDER_CLOUDFLARE && !autoToken && autoHostname) {
+          autoToken = await resolveManagedRemoteTunnelToken({ presetId: '', hostname: autoHostname });
+        }
+        const autoConfigPath = autoMode === TUNNEL_MODE_MANAGED_LOCAL
+          ? normalizeOptionalPath(autoStartSettings?.managedLocalTunnelConfigPath)
+          : undefined;
+        startupTunnelRequest = normalizeTunnelStartRequest({
+          provider: autoProvider,
+          mode: autoMode,
+          configPath: autoConfigPath,
+          token: autoToken,
+          hostname: autoHostname,
+        });
+        console.log(`[Tunnel] Auto-starting tunnel (mode: ${autoMode}, provider: ${autoProvider})`);
+      }
+    } catch (autoStartError) {
+      console.warn('[Tunnel] Failed to read auto-start settings:', autoStartError?.message || autoStartError);
+    }
+  }
+
   const attachSignals = options.attachSignals !== false;
   const onTunnelReady = typeof options.onTunnelReady === 'function' ? options.onTunnelReady : null;
   if (typeof options.exitOnShutdown === 'boolean') {

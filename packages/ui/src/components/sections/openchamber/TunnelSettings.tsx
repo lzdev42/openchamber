@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 import { toast } from '@/components/ui';
 import { runtimeFetch } from '@/lib/runtime-fetch';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -378,6 +379,9 @@ export const TunnelSettings: React.FC = () => {
   const [sessionRecords, setSessionRecords] = React.useState<TunnelSessionRecord[]>([]);
   const [nowTs, setNowTs] = React.useState<number>(() => Date.now());
   const [localPort, setLocalPort] = React.useState<number | null>(null);
+  const [tunnelPasswordEnabled, setTunnelPasswordEnabled] = React.useState(false);
+  const [tunnelPassword, setTunnelPassword] = React.useState('');
+  const [tunnelAutoStart, setTunnelAutoStart] = React.useState(false);
   const managedLocalConfigExtensionError = t(MANAGED_LOCAL_CONFIG_EXTENSION_ERROR_KEY);
   const managedLocalConfigFileInputRef = React.useRef<HTMLInputElement>(null);
   const isManagedLocalConfigPathInvalid = React.useMemo(() => {
@@ -587,6 +591,10 @@ export const TunnelSettings: React.FC = () => {
       );
       setSavedTokenPresetIds(new Set(Array.isArray(statusData.managedRemoteTunnelTokenPresetIds) ? statusData.managedRemoteTunnelTokenPresetIds : []));
       setLocalPort(typeof statusData.localPort === 'number' ? statusData.localPort : null);
+      const loadedTunnelPassword = typeof settingsData?.tunnelPassword === 'string' ? settingsData.tunnelPassword.trim() : '';
+      setTunnelPassword(loadedTunnelPassword);
+      setTunnelPasswordEnabled(loadedTunnelPassword.length > 0);
+      setTunnelAutoStart(settingsData?.tunnelAutoStart === true);
 
       if (statusData.active && statusData.url) {
         setTunnelInfo({
@@ -812,6 +820,44 @@ export const TunnelSettings: React.FC = () => {
       toast.error(t('settings.ocelot.tunnel.toast.saveTtlFailed'));
     } finally {
       setIsSavingTtl(false);
+    }
+  }, [t]);
+
+  const handleTunnelPasswordToggle = React.useCallback(async (enabled: boolean) => {
+    setTunnelPasswordEnabled(enabled);
+    if (!enabled) {
+      const prevPassword = tunnelPassword;
+      setTunnelPassword('');
+      try {
+        await updateDesktopSettings({ tunnelPassword: '' });
+      } catch {
+        setTunnelPassword(prevPassword);
+        setTunnelPasswordEnabled(true);
+        toast.error(t('settings.ocelot.tunnel.toast.savePasswordFailed'));
+      }
+    }
+  }, [t, tunnelPassword]);
+
+  const handleTunnelPasswordSave = React.useCallback(async () => {
+    const trimmed = tunnelPassword.trim();
+    if (!trimmed) {
+      return;
+    }
+    try {
+      await updateDesktopSettings({ tunnelPassword: trimmed });
+      toast.success(t('settings.ocelot.tunnel.toast.passwordSaved'));
+    } catch {
+      toast.error(t('settings.ocelot.tunnel.toast.savePasswordFailed'));
+    }
+  }, [t, tunnelPassword]);
+
+  const handleTunnelAutoStartChange = React.useCallback(async (enabled: boolean) => {
+    setTunnelAutoStart(enabled);
+    try {
+      await updateDesktopSettings({ tunnelAutoStart: enabled });
+    } catch {
+      setTunnelAutoStart(!enabled);
+      toast.error(t('settings.ocelot.tunnel.toast.saveAutoStartFailed'));
     }
   }, [t]);
 
@@ -1425,6 +1471,68 @@ export const TunnelSettings: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Password authentication + auto-start */}
+          <div className="space-y-3 rounded-lg border border-[var(--interactive-border)] bg-[var(--surface-elevated)] p-3">
+            <label
+              className="flex cursor-pointer items-start gap-2"
+              data-settings-item="tunnel.password-auth"
+            >
+              <Checkbox
+                checked={tunnelPasswordEnabled}
+                onChange={(checked) => void handleTunnelPasswordToggle(checked)}
+                ariaLabel={t('settings.ocelot.tunnel.field.tunnelPassword')}
+                disabled={state === 'starting' || state === 'stopping'}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="typography-ui-label text-foreground">{t('settings.ocelot.tunnel.field.tunnelPassword')}</div>
+                <div className="typography-micro text-muted-foreground/70">
+                  {t('settings.ocelot.tunnel.field.tunnelPasswordHint')}
+                </div>
+              </div>
+            </label>
+
+            {tunnelPasswordEnabled && (
+              <div className="flex items-center gap-2 pl-6">
+                <Input
+                  type="password"
+                  value={tunnelPassword}
+                  onChange={(event) => setTunnelPassword(event.target.value)}
+                  placeholder={t('settings.ocelot.tunnel.field.tunnelPasswordPlaceholder')}
+                  aria-label={t('settings.ocelot.tunnel.field.tunnelPasswordAria')}
+                  className="h-7"
+                  disabled={state === 'starting' || state === 'stopping'}
+                />
+                <Button
+                  variant="default"
+                  size="xs"
+                  onClick={() => void handleTunnelPasswordSave()}
+                  disabled={!tunnelPassword.trim() || state === 'starting' || state === 'stopping'}
+                >
+                  {t('settings.ocelot.tunnel.actions.saveToken')}
+                </Button>
+              </div>
+            )}
+
+            <div className="border-t border-[var(--surface-subtle)]" />
+
+            <label
+              className="flex cursor-pointer items-start gap-2"
+              data-settings-item="tunnel.auto-start"
+            >
+              <Checkbox
+                checked={tunnelAutoStart}
+                onChange={(checked) => void handleTunnelAutoStartChange(checked)}
+                ariaLabel={t('settings.ocelot.tunnel.field.tunnelAutoStart')}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="typography-ui-label text-foreground">{t('settings.ocelot.tunnel.field.tunnelAutoStart')}</div>
+                <div className="typography-micro text-muted-foreground/70">
+                  {t('settings.ocelot.tunnel.field.tunnelAutoStartHint')}
+                </div>
+              </div>
+            </label>
           </div>
 
           {tunnelMode === 'quick' && (

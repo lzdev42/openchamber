@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.5] - 2026-07-09
+
+- Fix AI Router abandoning stalled streams before any response data was sent — now retries or falls back instead of giving up
+- Detect stalled API responses faster to reduce wait time on dead connections
+- Add password authentication for tunnels as an alternative to one-time connect links
+- Add tunnel auto-start option to resume the tunnel automatically on app launch
+- Make chat working status text translatable for non-English users
+- Remove VS Code extension support
+- Remove agent manager and agent groups feature
+- Update in-app changelog, bug report, and feature request links to point to the Ocelot repository
+
 ## [1.0.4] - 2026-07-08
 
 - Use OpenCode `modalities` field instead of custom `attachment` flag for AI Router image input support

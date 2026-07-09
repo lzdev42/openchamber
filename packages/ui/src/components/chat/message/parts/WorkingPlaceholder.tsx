@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n, type I18nKey } from '@/lib/i18n';
 import { BusyDots } from './BusyDots';
 
 interface WorkingPlaceholderProps {
@@ -8,6 +9,7 @@ interface WorkingPlaceholderProps {
   isWaitingForPermission?: boolean;
   retryInfo?: { attempt?: number; next?: number } | null;
   agentName?: string;
+  activeToolName?: string;
 }
 
 const STATUS_DISPLAY_TIME_MS = 1200;
@@ -52,22 +54,28 @@ const formatRetryCountdown = (seconds: number): string => {
 
 };
 
+const USING_TOOL_KEY = 'chat.workingStatus.usingTool';
+const WAITING_FOR_PERMISSION_KEY = 'chat.workingStatus.waitingForPermission';
+
 export function WorkingPlaceholder({
   isWorking,
   statusText,
   isGenericStatus,
   isWaitingForPermission,
   retryInfo,
+  activeToolName,
 }: WorkingPlaceholderProps) {
-  const [displayedText, setDisplayedText] = React.useState<string | null>(null);
+  const { t } = useI18n();
+  const [displayedKey, setDisplayedKey] = React.useState<string | null>(null);
   const [displayedPermission, setDisplayedPermission] = React.useState<boolean>(false);
-  const displayedTextRef = React.useRef(displayedText);
+  const [displayedToolName, setDisplayedToolName] = React.useState<string | undefined>(undefined);
+  const displayedKeyRef = React.useRef(displayedKey);
   const displayedPermissionRef = React.useRef(displayedPermission);
-  displayedTextRef.current = displayedText;
+  displayedKeyRef.current = displayedKey;
   displayedPermissionRef.current = displayedPermission;
 
   const statusShownAtRef = React.useRef<number>(0);
-  const queuedStatusRef = React.useRef<{ text: string; permission: boolean } | null>(null);
+  const queuedStatusRef = React.useRef<{ key: string; permission: boolean; toolName?: string } | null>(null);
   const processQueueTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Countdown state for retry mode
@@ -99,11 +107,12 @@ export function WorkingPlaceholder({
     }
   }, []);
 
-  const showStatus = React.useCallback((text: string, permission: boolean) => {
+  const showStatus = React.useCallback((key: string, permission: boolean, toolName?: string) => {
     clearTimers();
     queuedStatusRef.current = null;
-    setDisplayedText(text);
+    setDisplayedKey(key);
     setDisplayedPermission(permission);
+    setDisplayedToolName(toolName);
     statusShownAtRef.current = Date.now();
   }, [clearTimers]);
 
@@ -116,7 +125,7 @@ export function WorkingPlaceholder({
 
       const queued = queuedStatusRef.current;
       if (queued) {
-        showStatus(queued.text, queued.permission);
+        showStatus(queued.key, queued.permission, queued.toolName);
       }
     }, remaining);
   }, [showStatus]);
@@ -125,8 +134,9 @@ export function WorkingPlaceholder({
     if (!isWorking) {
       clearTimers();
       queuedStatusRef.current = null;
-      setDisplayedText(null);
+      setDisplayedKey(null);
       setDisplayedPermission(false);
+      setDisplayedToolName(undefined);
       return;
     }
 
@@ -137,20 +147,21 @@ export function WorkingPlaceholder({
       return;
     }
 
-    const incomingText = isWaitingForPermission ? 'waiting for permission' : statusText;
+    const incomingKey = isWaitingForPermission ? WAITING_FOR_PERMISSION_KEY : statusText;
     const incomingPermission = Boolean(isWaitingForPermission);
     const incomingGeneric = Boolean(isGenericStatus) && !incomingPermission;
+    const incomingToolName = activeToolName;
 
-    if (!incomingText) {
+    if (!incomingKey) {
       return;
     }
 
-    if (!displayedTextRef.current) {
-      showStatus(incomingText, incomingPermission);
+    if (!displayedKeyRef.current) {
+      showStatus(incomingKey, incomingPermission, incomingToolName);
       return;
     }
 
-    if (incomingText === displayedTextRef.current && incomingPermission === displayedPermissionRef.current) {
+    if (incomingKey === displayedKeyRef.current && incomingPermission === displayedPermissionRef.current) {
       return;
     }
 
@@ -161,11 +172,11 @@ export function WorkingPlaceholder({
 
     const elapsed = Date.now() - statusShownAtRef.current;
     if (elapsed >= STATUS_DISPLAY_TIME_MS) {
-      showStatus(incomingText, incomingPermission);
+      showStatus(incomingKey, incomingPermission, incomingToolName);
       return;
     }
 
-    queuedStatusRef.current = { text: incomingText, permission: incomingPermission };
+    queuedStatusRef.current = { key: incomingKey, permission: incomingPermission, toolName: incomingToolName };
     scheduleQueueProcess();
   }, [
     isWorking,
@@ -173,6 +184,7 @@ export function WorkingPlaceholder({
     isGenericStatus,
     isWaitingForPermission,
     retryInfo,
+    activeToolName,
     clearTimers,
     showStatus,
     scheduleQueueProcess,
@@ -186,11 +198,18 @@ export function WorkingPlaceholder({
 
   // Retry state: show countdown and attempt info
   if (retryInfo) {
-    const attemptLabel = retryInfo.attempt && retryInfo.attempt > 1 ? ` (attempt ${retryInfo.attempt})` : '';
-    const countdownLabel = retryCountdown !== null && retryCountdown > 0
-      ? ` in ${formatRetryCountdown(retryCountdown)}`
-      : '';
-    const retryText = `Retrying${countdownLabel}${attemptLabel}`;
+    const hasCountdown = retryCountdown !== null && retryCountdown > 0;
+    const hasAttempt = Boolean(retryInfo.attempt && retryInfo.attempt > 1);
+    const countdownStr = hasCountdown ? formatRetryCountdown(retryCountdown as number) : '';
+    const attemptNum = hasAttempt ? (retryInfo.attempt as number) : 0;
+
+    const retryText = hasCountdown && hasAttempt
+      ? t('chat.workingStatus.retryingInAttempt', { countdown: countdownStr, attempt: attemptNum })
+      : hasCountdown
+        ? t('chat.workingStatus.retryingIn', { countdown: countdownStr })
+        : hasAttempt
+          ? t('chat.workingStatus.retryingAttempt', { attempt: attemptNum })
+          : t('chat.workingStatus.retrying');
 
     return (
       <div
@@ -207,11 +226,14 @@ export function WorkingPlaceholder({
     );
   }
 
-  if (!displayedText) {
+  if (!displayedKey) {
     return null;
   }
 
-  const label = displayedText.charAt(0).toUpperCase() + displayedText.slice(1);
+  const translatedText = displayedKey === USING_TOOL_KEY && displayedToolName
+    ? t(displayedKey as I18nKey, { tool: displayedToolName })
+    : t(displayedKey as I18nKey);
+  const label = translatedText.charAt(0).toUpperCase() + translatedText.slice(1);
 
   return (
     <div

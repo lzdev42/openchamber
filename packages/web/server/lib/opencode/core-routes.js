@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 const parseLoopbackUrl = (rawUrl) => {
   if (typeof rawUrl !== 'string') {
     return null;
@@ -360,6 +362,7 @@ export const registerAuthAndAccessRoutes = (app, dependencies) => {
     remoteClientAuthRuntime,
     readSettingsFromDiskMigrated,
     normalizeTunnelSessionTtlMs,
+    writeSettingsToDisk,
   } = dependencies;
 
   const runWithUiAuth = async (req, res, next, handler, options = {}) => {
@@ -464,6 +467,11 @@ export const registerAuthAndAccessRoutes = (app, dependencies) => {
         return res.json({ authenticated: true, scope: 'tunnel' });
       }
       tunnelAuthController.clearTunnelSessionCookie(req, res);
+      const settings = await readSettingsFromDiskMigrated();
+      const tunnelPassword = typeof settings?.tunnelPassword === 'string' ? settings.tunnelPassword.trim() : '';
+      if (tunnelPassword) {
+        return res.status(401).json({ authenticated: false, locked: true });
+      }
       return res.status(401).json({ authenticated: false, locked: true, tunnelLocked: true });
     }
 
@@ -474,10 +482,41 @@ export const registerAuthAndAccessRoutes = (app, dependencies) => {
     }
   });
 
-  app.post('/auth/session', (req, res) => {
+  app.post('/auth/session', async (req, res) => {
     const requestScope = tunnelAuthController.classifyRequestScope(req);
     if (requestScope === 'tunnel' || requestScope === 'unknown-public') {
-      return res.status(403).json({ error: 'Password login is disabled for tunnel scope', tunnelLocked: true });
+      const settings = await readSettingsFromDiskMigrated();
+      const tunnelPassword = typeof settings?.tunnelPassword === 'string' ? settings.tunnelPassword.trim() : '';
+      if (!tunnelPassword) {
+        return res.status(403).json({ error: 'Password login is disabled for tunnel scope', tunnelLocked: true });
+      }
+
+      const candidate = typeof req.body?.password === 'string' ? req.body.password : '';
+      const rateLimit = tunnelAuthController.checkConnectRateLimit?.(req);
+      if (rateLimit && !rateLimit.allowed) {
+        res.setHeader('Retry-After', String(rateLimit.retryAfter || 60));
+        return res.status(429).json({ error: 'Too many login attempts, please try again later', retryAfter: rateLimit.retryAfter });
+      }
+
+      const candidateBuffer = Buffer.from(candidate);
+      const expectedBuffer = Buffer.from(tunnelPassword);
+      const passwordValid = candidateBuffer.length === expectedBuffer.length
+        && crypto.timingSafeEqual(candidateBuffer, expectedBuffer);
+
+      if (!passwordValid) {
+        tunnelAuthController.recordConnectFailedAttempt?.(req);
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      tunnelAuthController.clearConnectRateLimit?.(req);
+      const tunnelSessionTtlMs = normalizeTunnelSessionTtlMs(settings?.tunnelSessionTtlMs);
+      const result = tunnelAuthController.issueTunnelSession({ req, res, sessionTtlMs: tunnelSessionTtlMs });
+      if (!result.ok) {
+        return res.status(503).json({ error: 'Tunnel is not active' });
+      }
+
+      res.setHeader('Cache-Control', 'no-store');
+      return res.json({ authenticated: true, scope: 'tunnel' });
     }
     return uiAuthController.handleSessionCreate(req, res);
   });

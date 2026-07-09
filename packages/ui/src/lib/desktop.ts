@@ -102,6 +102,8 @@ export type DesktopSettings = {
   tunnelProvider?: string;
   tunnelMode?: 'quick' | 'managed-remote' | 'managed-local';
   tunnelBootstrapTtlMs?: number | null;
+  tunnelAutoStart?: boolean;
+  tunnelPassword?: string;
   tunnelSessionTtlMs?: number;
   managedLocalTunnelConfigPath?: string | null;
   managedRemoteTunnelHostname?: string;

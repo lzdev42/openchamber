@@ -572,6 +572,36 @@ export const createTunnelAuth = () => {
     return sessions;
   };
 
+  const issueTunnelSession = ({ req, res, sessionTtlMs }) => {
+    if (!activeTunnelId) {
+      return { ok: false, reason: 'inactive' };
+    }
+
+    const sessionId = crypto.randomBytes(32).toString('base64url');
+    const createdAt = nowTs();
+    const expiresAt = createdAt + sessionTtlMs;
+
+    tunnelSessions.set(sessionId, {
+      sessionId,
+      tunnelId: activeTunnelId,
+      mode: activeTunnelMode,
+      publicUrl: activeTunnelPublicUrl,
+      createdAt,
+      lastSeenAt: createdAt,
+      expiresAt,
+      revokedAt: null,
+      revokedReason: null,
+      expiredAt: null,
+    });
+
+    setTunnelSessionCookie(req, res, sessionId, sessionTtlMs);
+
+    return {
+      ok: true,
+      sessionExpiresAt: expiresAt,
+    };
+  };
+
   return {
     classifyRequestScope,
     setActiveTunnel,
@@ -582,6 +612,10 @@ export const createTunnelAuth = () => {
     requireTunnelSession,
     getTunnelSessionFromRequest,
     exchangeBootstrapToken,
+    issueTunnelSession,
+    checkConnectRateLimit,
+    recordConnectFailedAttempt,
+    clearConnectRateLimit,
     listTunnelSessions,
     clearTunnelSessionCookie,
     getActiveTunnelId: () => activeTunnelId,

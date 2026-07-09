@@ -806,6 +806,14 @@ const sanitizeWebSettings = (payload: unknown): DesktopSettings | null => {
   } else if (typeof candidate.tunnelBootstrapTtlMs === 'number' && Number.isFinite(candidate.tunnelBootstrapTtlMs)) {
     result.tunnelBootstrapTtlMs = candidate.tunnelBootstrapTtlMs;
   }
+  if (typeof candidate.tunnelAutoStart === 'boolean') {
+    result.tunnelAutoStart = candidate.tunnelAutoStart;
+  }
+  if (candidate.tunnelPassword === null) {
+    result.tunnelPassword = '';
+  } else if (typeof candidate.tunnelPassword === 'string') {
+    result.tunnelPassword = candidate.tunnelPassword.trim();
+  }
   if (typeof candidate.tunnelSessionTtlMs === 'number' && Number.isFinite(candidate.tunnelSessionTtlMs)) {
     result.tunnelSessionTtlMs = candidate.tunnelSessionTtlMs;
   }

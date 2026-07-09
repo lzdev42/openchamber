@@ -63,15 +63,15 @@ function customLookup(hostname, options, callback) {
 
 // ===== 代理转发 =====
 const FALLBACK_TRIGGER_CODES = [429, 500, 502, 503, 504];
-const RETRY_DELAY_MS = 5000;
+const RETRY_DELAY_MS = 1000;
 
 // Stall detection during body streaming. If no new chunk arrives from the
 // upstream API for this many milliseconds, abort the reader and close the
 // connection. This prevents the UI from hanging indefinitely when the API
 // stalls mid-stream (e.g. connection silently drops after partial output).
-// 90s is generous enough to tolerate deep-thinking pauses while still
-// catching genuine stalls well before the 5-minute undici bodyTimeout.
-const STALL_TIMEOUT_MS = 90_000;
+// 30s aligns with OpenCode's own chunkTimeout default — if the upstream
+// hasn't sent anything for 30s, it's almost certainly stalled.
+const STALL_TIMEOUT_MS = 30_000;
 
 const HOP_BY_HOP_HEADERS = new Set([
   'content-encoding',
@@ -159,11 +159,19 @@ async function streamResponse(response, res) {
         res.write(Buffer.from(value));
       } catch (error) {
         clearTimeout(stallTimer);
-        // Stall (or reader error): abort the upstream reader and close
-        // the downstream response. We can't retry because headers are
-        // already sent.
+        // Stall (or reader error): abort the upstream reader.
+        //
+        // If hasWritten is false, no data has been flushed to the client
+        // yet — res.status()/res.setHeader() were called but Express
+        // hasn't sent headers (that only happens on first write or end).
+        // We must NOT call res.end() here so the caller can still retry
+        // or send an error response.
+        //
+        // If hasWritten is true, headers and partial body are already
+        // committed. We close the response so OpenCode sees a clean
+        // connection close instead of hanging forever.
         try { await reader.cancel(); } catch { /* ignore */ }
-        if (!res.writableEnded) {
+        if (hasWritten && !res.writableEnded) {
           res.end();
         }
         throw error;
@@ -319,11 +327,38 @@ export function createAirouterRoutes(config) {
         } catch (error) {
           clearTimeout(timer);
 
-          // Stream stall: the response was already partially sent to
-          // OpenCode. res.end() was called by streamResponse. We cannot
-          // retry or fallback because headers are already committed.
+          // Stream stall: the upstream returned HTTP 200 but then stopped
+          // sending data. Whether we can retry depends on whether any data
+          // was already forwarded to OpenCode:
+          //
+          // - hasWritten=false: no data (and no headers) have been flushed
+          //   to the client. We can safely retry or fallback — Express
+          //   hasn't committed the response yet.
+          //
+          // - hasWritten=true: partial body was already sent to OpenCode.
+          //   Headers are committed. We CANNOT retry — close the response
+          //   and give up.
           if (error?.stalled) {
-            addLog('warn', `Stream stall ${routeName} (hasWritten=${error.hasWritten}) — connection closed`);
+            if (!error.hasWritten && !res.headersSent) {
+              addLog('warn', `Stream stall ${routeName} (hasWritten=false) — retrying`);
+              if (attempt < maxRetries && !isClientAborted.value) {
+                addLog('warn', `Retry [${attempt + 2}/${maxRetries + 1}] ${routeName} delay=${RETRY_DELAY_MS}ms`);
+                await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+                await executeRequest(attempt + 1);
+                return;
+              }
+              if (hasFallback && !isClientAborted.value) {
+                addLog('warn', `Fallback from ${routeName} (stream stall, no data written)`);
+                await tryRouteChain(chainIndex + 1);
+                return;
+              }
+              // All retries exhausted — report error to OpenCode
+              if (!res.headersSent) {
+                res.status(502).json({ error: { message: `Upstream stream stalled after ${STALL_TIMEOUT_MS}ms` } });
+              }
+              return;
+            }
+            addLog('warn', `Stream stall ${routeName} (hasWritten=${error.hasWritten}) — connection closed, cannot retry`);
             return;
           }
 

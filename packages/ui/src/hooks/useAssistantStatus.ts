@@ -67,42 +67,42 @@ const EMPTY_MESSAGES: Message[] = [];
 const EMPTY_PARTS: Part[] = [];
 const STATUS_SIGNATURE_SEPARATOR = '\u0000';
 const EDITING_TOOLS = new Set(['edit', 'write', 'multiedit', 'apply_patch']);
-const TOOL_STATUS_PHRASES: Record<string, string> = {
-    read: 'reading file',
-    write: 'writing file',
-    edit: 'editing file',
-    multiedit: 'editing files',
-    apply_patch: 'applying patch',
-    bash: 'running command',
-    grep: 'searching content',
-    glob: 'finding files',
-    list: 'listing directory',
-    task: 'delegating task',
-    webfetch: 'fetching URL',
-    websearch: 'searching web',
-    codesearch: 'web code search',
-    todowrite: 'updating todos',
-    todoread: 'reading todos',
-    skill: 'learning skill',
-    question: 'asking question',
-    plan_enter: 'switching to planning',
-    plan_exit: 'switching to building',
+const TOOL_STATUS_KEYS: Record<string, string> = {
+    read: 'chat.workingStatus.tool.read',
+    write: 'chat.workingStatus.tool.write',
+    edit: 'chat.workingStatus.tool.edit',
+    multiedit: 'chat.workingStatus.tool.multiedit',
+    apply_patch: 'chat.workingStatus.tool.apply_patch',
+    bash: 'chat.workingStatus.tool.bash',
+    grep: 'chat.workingStatus.tool.grep',
+    glob: 'chat.workingStatus.tool.glob',
+    list: 'chat.workingStatus.tool.list',
+    task: 'chat.workingStatus.tool.task',
+    webfetch: 'chat.workingStatus.tool.webfetch',
+    websearch: 'chat.workingStatus.tool.websearch',
+    codesearch: 'chat.workingStatus.tool.codesearch',
+    todowrite: 'chat.workingStatus.tool.todowrite',
+    todoread: 'chat.workingStatus.tool.todoread',
+    skill: 'chat.workingStatus.tool.skill',
+    question: 'chat.workingStatus.tool.question',
+    plan_enter: 'chat.workingStatus.tool.plan_enter',
+    plan_exit: 'chat.workingStatus.tool.plan_exit',
 };
-const WORKING_PHRASES = [
-    'working',
-    'processing',
-    'preparing',
-    'warming up',
-    'gears turning',
-    'computing',
-    'calculating',
-    'analyzing',
-    'wheels spinning',
-    'calibrating',
-    'synthesizing',
-    'connecting dots',
-    'inspecting logic',
-    'weighing options',
+const GENERIC_STATUS_KEYS = [
+    'chat.workingStatus.generic.working',
+    'chat.workingStatus.generic.processing',
+    'chat.workingStatus.generic.preparing',
+    'chat.workingStatus.generic.warmingUp',
+    'chat.workingStatus.generic.gearsTurning',
+    'chat.workingStatus.generic.computing',
+    'chat.workingStatus.generic.calculating',
+    'chat.workingStatus.generic.analyzing',
+    'chat.workingStatus.generic.wheelsSpinning',
+    'chat.workingStatus.generic.calibrating',
+    'chat.workingStatus.generic.synthesizing',
+    'chat.workingStatus.generic.connectingDots',
+    'chat.workingStatus.generic.inspectingLogic',
+    'chat.workingStatus.generic.weighingOptions',
 ];
 
 type ParsedStatusResult = {
@@ -112,8 +112,8 @@ type ParsedStatusResult = {
     isGenericStatus: boolean;
 };
 
-const getToolStatusPhrase = (toolName: string): string => {
-    return TOOL_STATUS_PHRASES[toolName] ?? `using ${toolName}`;
+const getToolStatusKey = (toolName: string): string => {
+    return TOOL_STATUS_KEYS[toolName] ?? 'chat.workingStatus.usingTool';
 };
 
 const hashString = (value: string): number => {
@@ -124,8 +124,8 @@ const hashString = (value: string): number => {
     return Math.abs(hash);
 };
 
-const getStableWorkingPhrase = (key: string): string => {
-    return WORKING_PHRASES[hashString(key) % WORKING_PHRASES.length] ?? 'working';
+const getStableWorkingKey = (key: string): string => {
+    return GENERIC_STATUS_KEYS[hashString(key) % GENERIC_STATUS_KEYS.length] ?? 'chat.workingStatus.generic.working';
 };
 
 const createParsedStatus = (parts: Part[], genericKey: string): ParsedStatusResult => {
@@ -179,11 +179,11 @@ const createParsedStatus = (parts: Part[], genericKey: string): ParsedStatusResu
 
     const isGenericStatus = activePartType === undefined;
     const statusText = (() => {
-        if (activePartType === 'editing') return activeToolName === 'multiedit' ? getToolStatusPhrase(activeToolName) : 'editing file';
-        if (activePartType === 'tool' && activeToolName) return getToolStatusPhrase(activeToolName);
-        if (activePartType === 'reasoning') return 'thinking';
-        if (activePartType === 'text') return 'composing';
-        return getStableWorkingPhrase(genericKey);
+        if (activePartType === 'editing') return activeToolName === 'multiedit' ? getToolStatusKey(activeToolName) : 'chat.workingStatus.editingFile';
+        if (activePartType === 'tool' && activeToolName) return getToolStatusKey(activeToolName);
+        if (activePartType === 'reasoning') return 'chat.workingStatus.thinking';
+        if (activePartType === 'text') return 'chat.workingStatus.composing';
+        return getStableWorkingKey(genericKey);
     })();
 
     return { activePartType, activeToolName, statusText, isGenericStatus };
@@ -199,7 +199,7 @@ const encodeParsedStatus = (status: ParsedStatusResult): string => {
 };
 
 const decodeParsedStatus = (signature: string): ParsedStatusResult => {
-    const [activePartType, activeToolName, statusText = 'working', isGenericStatus] = signature.split(STATUS_SIGNATURE_SEPARATOR);
+    const [activePartType, activeToolName, statusText = 'chat.workingStatus.generic.working', isGenericStatus] = signature.split(STATUS_SIGNATURE_SEPARATOR);
     return {
         activePartType: activePartType === 'text' || activePartType === 'tool' || activePartType === 'reasoning' || activePartType === 'editing'
             ? activePartType
@@ -404,7 +404,7 @@ export function useAssistantStatus(): AssistantStatusSnapshot {
 
         return {
             ...baseWorking,
-            statusText: 'waiting for permission',
+            statusText: 'chat.workingStatus.waitingForPermission',
             isWaitingForPermission: true,
             canAbort: false,
             retryInfo: null,
